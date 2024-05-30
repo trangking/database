@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const mysql = require("mysql");
-const { number } = require("prop-types");
+
 const app = express();
 app.use(express.json());
 
@@ -10,7 +10,7 @@ const db = mysql.createConnection({
   host: "localhost",
   user: "root",
   password: "",
-  database: "testdatabase",
+  database: "tests",
 });
 app.get("/", (req, res) => {
   res.json("open API");
@@ -105,25 +105,23 @@ app.get("/Model_detail", async (req, res) => {
 app.get("/price", async (req, res) => {
   const params = req.query.MDDT_CODE;
   const caryears = req.query.CAR_YEAR;
-  const sql = `SELECT PRICE,PERS_LEASING  FROM car_show3 WHERE MDDT_CODE='${params}' AND CAR_YEAR=${caryears} GROUP BY PRICE`;
+  const sql = `SELECT PRICE,PERS_LEASING,PERS_EXTRA,MD_NAME FROM car_show3 WHERE MDDT_CODE='${params}' AND CAR_YEAR=${caryears} GROUP BY PRICE`;
   db.query(sql, async (error, elements) => {
     if (error) {
       return error;
     }
     const result = await Promise.all(elements);
-    console.log("ราคากลาง" + result[0].PRICE);
-
-    console.log("เปอร์เซ็นยอดที่จัดได้" + result[0].PERS_LEASING);
-    console.log(
-      "แสดงยอดจัดได้ : " + calTotal(result[0].PRICE, result[0].PERS_LEASING)
-    );
 
     const Total = calTotal(result[0].PRICE, result[0].PERS_LEASING);
+    const TotalforExtra = calTotal(result[0].PRICE, result[0].PERS_EXTRA);
     console.log(Total);
     const arrTotal = {
       PRICE: result[0].PRICE,
       PERS_LEASING: result[0].PERS_LEASING,
+      PERS_EXTRA: result[0].PERS_EXTRA,
+      model: result[0].MD_NAME,
       total: Total,
+      totalforExtra: TotalforExtra,
     };
 
     return res.send({ arrTotal });
@@ -157,22 +155,15 @@ app.get("/persleasing", async (req, res) => {
 
 app.post("/principalAmount", async (req, res) => {
   const data = req.body;
-  console.log(data)
   const Total = calculateinterestrate(
     parseFloat(data.principalAmount),
     parseFloat(data.interestrate),
     parseFloat(data.installmentPayment)
-    
   );
   try {
-    console.log(Total);
     data.total = Total;
     console.log(Total);
-    // console.log(typeof {data});
-    // const values = Object.values(data);
-    // console.log(values);
-    // for (let i = 0 ; i < data.length)
-    return res.json([data]);
+    return res.json([Total]);
   } catch (error) {
     res.status(500);
   }
@@ -236,15 +227,12 @@ app.get("/interestrate/installmentPayment", async (req, res) => {
   console.log(listArr);
   return res.send(listArr);
 });
-
 const calculateinterestrate = (
   principalAmount,
   interestrate,
   installmentPayment
 ) => {
-  const arrCard1 = [];
-  const arrCard2 = [];
-  const arrCard3 = [];
+  const results = [];
 
   if (installmentPayment >= 12 && installmentPayment <= 24) {
     for (
@@ -252,37 +240,18 @@ const calculateinterestrate = (
       installmentPayment <= 24;
       installmentPayment += 6
     ) {
-      if (installmentPayment === 12) {
-        const result =
-          ((((principalAmount * interestrate) / 100) * installmentPayment) /
-            12 +
-            principalAmount) /
-          installmentPayment;
-        arrCard1.push({
-          installmentPayment: installmentPayment,
-          result: result,
-        });
-      } else if (installmentPayment === 18) {
-        const result =
-          ((((principalAmount * interestrate) / 100) * installmentPayment) /
-            12 +
-            principalAmount) /
-          installmentPayment;
-        arrCard2.push({
-          installmentPayment: installmentPayment,
-          result: result,
-        });
-      } else if (installmentPayment === 24) {
-        const result =
-          ((((principalAmount * interestrate) / 100) * installmentPayment) /
-            12 +
-            principalAmount) /
-          installmentPayment;
-        arrCard3.push({
-          installmentPayment: installmentPayment,
-          result: result,
-        });
-      }
+      const result =
+        ((((principalAmount * interestrate) / 100) * installmentPayment) / 12 +
+          principalAmount) /
+        installmentPayment;
+
+      const obj = {
+        installmentPayment: installmentPayment,
+        interestrate: interestrate,
+        result: result,
+      };
+
+      results.push(obj);
     }
   }
 
@@ -292,37 +261,18 @@ const calculateinterestrate = (
       installmentPayment <= 60;
       installmentPayment += 6
     ) {
-      if (installmentPayment === 36) {
-        const result =
-          ((((principalAmount * interestrate) / 100) * installmentPayment) /
-            12 +
-            principalAmount) /
-          installmentPayment;
-        arrCard1.push({
-          installmentPayment: installmentPayment,
-          result: result,
-        });
-      } else if (installmentPayment === 48) {
-        const result =
-          ((((principalAmount * interestrate) / 100) * installmentPayment) /
-            12 +
-            principalAmount) /
-          installmentPayment;
-        arrCard2.push({
-          installmentPayment: installmentPayment,
-          result: result,
-        });
-      } else if (installmentPayment === 60) {
-        const result =
-          ((((principalAmount * interestrate) / 100) * installmentPayment) /
-            12 +
-            principalAmount) /
-          installmentPayment;
-        arrCard3.push({
-          installmentPayment: installmentPayment,
-          result: result,
-        });
-      }
+      const result =
+        ((((principalAmount * interestrate) / 100) * installmentPayment) / 12 +
+          principalAmount) /
+        installmentPayment;
+
+      const obj = {
+        installmentPayment: installmentPayment,
+        interestrate: interestrate,
+        result: result,
+      };
+
+      results.push(obj);
     }
   }
 
@@ -332,43 +282,161 @@ const calculateinterestrate = (
       installmentPayment <= 80;
       installmentPayment += 8
     ) {
-      if (installmentPayment === 72) {
-        const result =
-          ((((principalAmount * interestrate) / 100) * installmentPayment) /
-            12 +
-            principalAmount) /
-          installmentPayment;
-        arrCard1.push({
-          installmentPayment: installmentPayment,
-          result: result,
-        });
-      } else if (installmentPayment === 80) {
-        const result =
-          ((((principalAmount * interestrate) / 100) * installmentPayment) /
-            12 +
-            principalAmount) /
-          installmentPayment;
-        arrCard2.push({
-          installmentPayment: installmentPayment,
-          result: result,
-        });
-      }
+      const result =
+        ((((principalAmount * interestrate) / 100) * installmentPayment) / 12 +
+          principalAmount) /
+        installmentPayment;
+
+      const obj = {
+        installmentPayment: installmentPayment,
+        interestrate: interestrate,
+        result: result,
+      };
+
+      results.push(obj);
     }
   }
 
-  const cardObject = {
-    arrCard1,
-    arrCard2,
-  };
-
-  if (arrCard3.length > 0) {
-    cardObject.arrCard3 = arrCard3;
-  }
-
-  console.log(cardObject);
-
-  return JSON.stringify(cardObject);
+  return results;
 };
+// const calculateinterestrate = (
+//   principalAmount,
+//   interestrate,
+//   installmentPayment
+// ) => {
+//   const objCard1 = {};
+//   const objCard2 = {};
+//   const objCard3 = {};
+
+//   if (installmentPayment >= 12 && installmentPayment <= 24) {
+//     for (
+//       installmentPayment = 12;
+//       installmentPayment <= 24;
+//       installmentPayment += 6
+//     ) {
+//       if (installmentPayment === 12) {
+//         const result =
+//           ((((principalAmount * interestrate) / 100) * installmentPayment) /
+//             12 +
+//             principalAmount) /
+//           installmentPayment;
+//         objCard1.dataCal1 = {
+//           installmentPayment: installmentPayment,
+//           result: result,
+//         };
+//       } else if (installmentPayment === 18) {
+//         const result =
+//           ((((principalAmount * interestrate) / 100) * installmentPayment) /
+//             12 +
+//             principalAmount) /
+//           installmentPayment;
+//         objCard2.dataCal2 = {
+//           installmentPayment: installmentPayment,
+//           result: result,
+//         };
+//       } else if (installmentPayment === 24) {
+//         const result =
+//           ((((principalAmount * interestrate) / 100) * installmentPayment) /
+//             12 +
+//             principalAmount) /
+//           installmentPayment;
+//         objCard3.dataCal3 = {
+//           installmentPayment: installmentPayment,
+//           result: result,
+//         };
+//       }
+//     }
+//   }
+
+//   if (installmentPayment >= 36 && installmentPayment <= 60) {
+//     for (
+//       installmentPayment = 36;
+//       installmentPayment <= 60;
+//       installmentPayment += 6
+//     ) {
+//       if (installmentPayment === 36) {
+//         const result =
+//           ((((principalAmount * interestrate) / 100) * installmentPayment) /
+//             12 +
+//             principalAmount) /
+//           installmentPayment;
+//         objCard1.dataCal1 = {
+//           installmentPayment: installmentPayment,
+//           result: result,
+//         };
+//       } else if (installmentPayment === 48) {
+//         const result =
+//           ((((principalAmount * interestrate) / 100) * installmentPayment) /
+//             12 +
+//             principalAmount) /
+//           installmentPayment;
+//         objCard2.dataCal2 = {
+//           installmentPayment: installmentPayment,
+//           result: result,
+//         };
+//       } else if (installmentPayment === 60) {
+//         const result =
+//           ((((principalAmount * interestrate) / 100) * installmentPayment) /
+//             12 +
+//             principalAmount) /
+//           installmentPayment;
+//         objCard3.dataCal3 = {
+//           installmentPayment: installmentPayment,
+//           result: result,
+//         };
+//       }
+//     }
+//   }
+
+//   if (installmentPayment >= 72 && installmentPayment <= 80) {
+//     for (
+//       installmentPayment = 72;
+//       installmentPayment <= 80;
+//       installmentPayment += 8
+//     ) {
+//       if (installmentPayment === 72) {
+//         const result =
+//           ((((principalAmount * interestrate) / 100) * installmentPayment) /
+//             12 +
+//             principalAmount) /
+//           installmentPayment;
+//         objCard1.dataCal1 = {
+//           installmentPayment: installmentPayment,
+//           result: result,
+//         };
+//       } else if (installmentPayment === 80) {
+//         const result =
+//           ((((principalAmount * interestrate) / 100) * installmentPayment) /
+//             12 +
+//             principalAmount) /
+//           installmentPayment;
+//         objCard2.dataCal2 = {
+//           installmentPayment: installmentPayment,
+//           result: result,
+//         };
+//       }
+//     }
+//   }
+
+//   const cardObject = {};
+
+//   if (Object.keys(objCard1).length > 0) {
+//     cardObject.objCard1 = objCard1;
+//   }
+
+//   if (Object.keys(objCard2).length > 0) {
+//     cardObject.objCard2 = objCard2;
+//   }
+
+//   if (Object.keys(objCard3).length > 0) {
+//     cardObject.objCard3 = objCard3;
+//   }
+
+//   console.log(cardObject);
+
+//   return cardObject;
+
+// };
 
 // const calTotal = (price, pers) => {
 //   let strArr = price.split(",");
